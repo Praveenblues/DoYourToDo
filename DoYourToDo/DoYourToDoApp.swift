@@ -1,6 +1,8 @@
 import SwiftUI
+import GoogleUtilities_AppDelegateSwizzler
 import UserNotifications
 import UIKit
+import Firebase
 
 @main
 struct DoYourToDoApp: App {
@@ -48,12 +50,20 @@ final class NotificationManager {
 class AppDelegate: NSObject, UIApplicationDelegate {
     private let notificationDelegate = NotificationDelegate()
     
-    func applicationDidFinishLaunching(_ application: UIApplication) {
+    func application(_ application: UIApplication,
+                       didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
+        debugPrint("Appdelegate didFinishLaunchingWithOptions")
+        GULAppDelegateSwizzler.registerAppDelegateInterceptor(self)
         UNUserNotificationCenter.current().delegate = notificationDelegate
+        FirebaseApp.configure()
+        Messaging.messaging().delegate = self
+        return true
     }
     
     func application(_ application: UIApplication,
-                     didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+                          didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+        debugPrint("Appdelegate didRegisterForRemoteNotificationsWithDeviceToken")
+        Messaging.messaging().apnsToken = deviceToken
         let token = deviceToken.map { String(format: "%02.2hhx", $0) }.joined()
         print("APNs device token: \(token)")
         // TODO: Send this token to your server for push notifications
@@ -62,6 +72,12 @@ class AppDelegate: NSObject, UIApplicationDelegate {
     func application(_ application: UIApplication,
                      didFailToRegisterForRemoteNotificationsWithError error: Error) {
         print("Failed to register for remote notifications: \(error)")
+    }
+}
+
+extension AppDelegate: MessagingDelegate {
+    func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
+        debugPrint("FCM token:", fcmToken ?? "")
     }
 }
 
